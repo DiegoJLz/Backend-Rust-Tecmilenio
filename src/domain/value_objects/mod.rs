@@ -1,1 +1,3 @@
-// Value objects will be implemented here
+pub mod email;
+pub mod password;
+pub mod username;
