@@ -1,1 +1,2 @@
-// Domain entities will be implemented here
+pub mod user;
+pub mod email_verification_token;
