@@ -1,1 +1,1 @@
-// Use cases will be implemented here
+pub mod register_user_use_case;
