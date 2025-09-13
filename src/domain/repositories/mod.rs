@@ -1,1 +1,2 @@
-// Repository interfaces will be implemented here
+pub mod user_repository;
+pub mod email_verification_repository;
