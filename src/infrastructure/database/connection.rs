@@ -1,10 +1,12 @@
 use diesel::pg::PgConnection;
-use diesel::r2d2::{self, ConnectionManager, Pool, PooledConnection};
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::Connection;
+use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use dotenvy::dotenv;
 use std::env;
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
-pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
+// pub type DbConnection = PooledConnection<ConnectionManager<PgConnection>>;
 
 pub fn create_pool() -> Result<DbPool, Box<dyn std::error::Error>> {
     dotenv().ok();
@@ -21,8 +23,6 @@ pub fn create_pool() -> Result<DbPool, Box<dyn std::error::Error>> {
 }
 
 pub fn run_migrations() -> Result<(), Box<dyn std::error::Error>> {
-    use diesel_migrations::{embed_migrations, MigrationHarness};
-
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL")
@@ -30,27 +30,14 @@ pub fn run_migrations() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut conn = PgConnection::establish(&database_url)?;
 
-    // Embed migrations at compile time
-    embed_migrations!("migrations/");
+    // Load migrations from the migrations directory
+    let migrations = FileBasedMigrations::from_path("migrations")?;
 
     // Run migrations
-    conn.run_pending_migrations(MIGRATIONS)
+    conn.run_pending_migrations(migrations)
         .map_err(|e| format!("Migration error: {}", e))?;
 
     println!("✅ Database migrations completed successfully!");
 
     Ok(())
-}
-
-#[cfg(test)]
-pub fn create_test_pool() -> DbPool {
-    dotenv().ok();
-
-    let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://username:password@localhost:5432/marketplace_experiences_test".to_string());
-
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-    Pool::builder()
-        .build(manager)
-        .expect("Failed to create test pool.")
 }
