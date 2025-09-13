@@ -43,6 +43,21 @@ config = "0.14"
 # Async runtime
 futures = "0.3"
 
+# JWT
+jsonwebtoken = "9.2"
+
+# Password hashing
+bcrypt = "0.15"
+
+# Regex
+regex = "1.10"
+
+# Async traits
+async-trait = "0.1"
+
+# Random number generation
+rand = "0.8"
+
 [dev-dependencies]
 # Testing
 tokio-test = "0.4"
