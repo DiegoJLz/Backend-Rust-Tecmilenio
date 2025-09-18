@@ -15,7 +15,7 @@ pub struct Claims {
 }
 
 impl Claims {
-    pub fn new(user_id: Uuid, email: String, username: String, expiration_hours: u64) -> Self {
+    pub fn new(user_id: Uuid, email: String, username: String, expiration_hours: u64, token_type: &str) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
@@ -27,8 +27,13 @@ impl Claims {
             username,
             iat: now,
             exp: now + (expiration_hours * 3600), // Convert hours to seconds
-            token_type: "access".to_string(),
+            token_type: token_type.to_string(),
         }
+    }
+
+    pub fn user_id(&self) -> Result<Uuid, ApiError> {
+        Uuid::parse_str(&self.sub)
+            .map_err(|_| ApiError::new("INVALID_USER_ID", "Invalid user ID in token"))
     }
 }
 
@@ -40,10 +45,13 @@ impl JwtUtils {
         user_id: Uuid,
         email: String,
         username: String,
-        secret: &str,
         expiration_hours: u64,
+        token_type: &str,
     ) -> Result<String, ApiError> {
-        let claims = Claims::new(user_id, email, username, expiration_hours);
+        let secret = std::env::var("JWT_SECRET")
+            .map_err(|_| ApiError::new("JWT_SECRET_NOT_SET", "JWT_SECRET environment variable not set"))?;
+
+        let claims = Claims::new(user_id, email, username, expiration_hours, token_type);
 
         encode(
             &Header::new(Algorithm::HS256),
@@ -60,34 +68,46 @@ impl JwtUtils {
     }
 
     /// Validates and decodes a JWT token
-    pub fn validate_token(token: &str, secret: &str) -> Result<Claims, ApiError> {
-        let validation = Validation::new(Algorithm::HS256);
+    pub fn validate_token(token: &str, token_type: &str) -> Result<Claims, ApiError> {
+        let secret = std::env::var("JWT_SECRET")
+            .map_err(|_| ApiError::new("JWT_SECRET_NOT_SET", "JWT_SECRET environment variable not set"))?;
 
-        decode::<Claims>(
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_exp = true;
+        validation.validate_nbf = false;
+
+        let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(secret.as_ref()),
             &validation,
         )
-        .map(|token_data| token_data.claims)
         .map_err(|e| {
             ApiError::with_details(
-                ERROR_INTERNAL_SERVER_ERROR,
+                "INVALID_TOKEN",
                 "Invalid or expired token",
                 &e.to_string(),
             )
-        })
+        })?;
+
+        let claims = token_data.claims;
+
+        // Validate token type
+        if claims.token_type != token_type {
+            return Err(ApiError::new("INVALID_TOKEN_TYPE", "Token type mismatch"));
+        }
+
+        Ok(claims)
     }
 
     /// Extracts user ID from token
-    pub fn extract_user_id(token: &str, secret: &str) -> Result<Uuid, ApiError> {
-        let claims = Self::validate_token(token, secret)?;
-        Uuid::parse_str(&claims.sub)
-            .map_err(|_| ApiError::new(ERROR_INTERNAL_SERVER_ERROR, "Invalid user ID in token"))
+    pub fn extract_user_id(token: &str, token_type: &str) -> Result<Uuid, ApiError> {
+        let claims = Self::validate_token(token, token_type)?;
+        claims.user_id()
     }
 
     /// Checks if token is expired
-    pub fn is_token_expired(token: &str, secret: &str) -> bool {
-        match Self::validate_token(token, secret) {
+    pub fn is_token_expired(token: &str, token_type: &str) -> bool {
+        match Self::validate_token(token, token_type) {
             Ok(_) => false,
             Err(_) => true,
         }

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
     avatar_url TEXT,
+    password_hash VARCHAR(255) NOT NULL,
     is_host BOOLEAN DEFAULT FALSE,
     is_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -153,10 +154,39 @@ CREATE TABLE IF NOT EXISTS experience_tags (
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token VARCHAR(255) NOT NULL UNIQUE,
+    token TEXT NOT NULL UNIQUE,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     is_used BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Sessions table
+CREATE TABLE IF NOT EXISTS sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_token TEXT NOT NULL UNIQUE,
+    access_token TEXT NOT NULL UNIQUE,
+    refresh_token TEXT,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Access tokens table (for different token types)
+CREATE TABLE IF NOT EXISTS access_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    token_type VARCHAR(50) NOT NULL, -- 'access', 'refresh', 'email_verification', 'password_reset'
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_used BOOLEAN DEFAULT FALSE,
+    is_revoked BOOLEAN DEFAULT FALSE,
+    metadata JSONB, -- Additional token metadata
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for better performance
@@ -191,6 +221,21 @@ CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_id ON email_verifi
 CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_token ON email_verification_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_expires_at ON email_verification_tokens(expires_at);
 
+-- Indexes for sessions
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_session_token ON sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_sessions_access_token ON sessions(access_token);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_is_active ON sessions(is_active);
+
+-- Indexes for access tokens
+CREATE INDEX IF NOT EXISTS idx_access_tokens_user_id ON access_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_token ON access_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_token_type ON access_tokens(token_type);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_expires_at ON access_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_is_used ON access_tokens(is_used);
+CREATE INDEX IF NOT EXISTS idx_access_tokens_is_revoked ON access_tokens(is_revoked);
+
 -- Triggers for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -208,6 +253,8 @@ CREATE TRIGGER update_experience_schedules_updated_at BEFORE UPDATE ON experienc
 CREATE TRIGGER update_bookings_updated_at BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_access_tokens_updated_at BEFORE UPDATE ON access_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger to update booking count in experience_schedules
 CREATE OR REPLACE FUNCTION update_booking_count()

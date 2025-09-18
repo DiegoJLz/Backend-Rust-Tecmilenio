@@ -58,6 +58,21 @@ async-trait = "0.1"
 # Random number generation
 rand = "0.8"
 
+# HTTP client for email API
+reqwest = { version = "0.11", features = ["json"] }
+# Resend API client (oficial)
+resend-rs = "0.17.1"
+# Email sending via SMTP (comentado por problemas de linking en Windows)
+# lettre = { version = "0.11", features = ["tokio1", "smtp-transport", "tokio1-native-tls", "builder"], default-features = false }
+
+[profile.dev]
+debug = 0
+opt-level = 0
+
+[profile.release]
+debug = 0
+opt-level = 3
+
 [dev-dependencies]
 # Testing
 tokio-test = "0.4"

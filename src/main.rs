@@ -12,6 +12,8 @@ use infrastructure::database::{create_pool, run_migrations};
 use infrastructure::repositories::{
     postgres_user_repository::PostgresUserRepository,
     postgres_email_verification_repository::PostgresEmailVerificationRepository,
+    postgres_session_repository::PostgresSessionRepository,
+    postgres_access_token_repository::PostgresAccessTokenRepository,
 };
 use domain::services::{
     password_service::BcryptPasswordService,
@@ -58,6 +60,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize repositories
     let user_repository = PostgresUserRepository::new(pool.clone());
     let email_verification_repository = PostgresEmailVerificationRepository::new(pool.clone());
+    let session_repository = PostgresSessionRepository::new(pool.clone());
+    let access_token_repository = PostgresAccessTokenRepository::new(pool.clone());
 
     // Initialize services
     let password_service = BcryptPasswordService;
@@ -67,9 +71,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let auth_handler = AuthHandler::new(
         user_repository,
         email_verification_repository,
+        session_repository,
+        access_token_repository,
         password_service,
         token_service,
-    );
+    )?;
 
     // Initialize controllers
     let auth_controller = AuthController::new(auth_handler);

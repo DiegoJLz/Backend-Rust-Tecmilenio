@@ -36,11 +36,41 @@ diesel::table! {
     email_verification_tokens (id) {
         id -> Uuid,
         user_id -> Uuid,
-        #[max_length = 255]
-        token -> Varchar,
+        token -> Text,
         expires_at -> Timestamptz,
         is_used -> Nullable<Bool>,
         created_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    sessions (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        session_token -> Text,
+        access_token -> Text,
+        refresh_token -> Nullable<Text>,
+        expires_at -> Timestamptz,
+        is_active -> Nullable<Bool>,
+        ip_address -> Nullable<Text>,
+        user_agent -> Nullable<Text>,
+        created_at -> Nullable<Timestamptz>,
+        updated_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    access_tokens (id) {
+        id -> Uuid,
+        user_id -> Uuid,
+        token -> Text,
+        token_type -> Varchar,
+        expires_at -> Timestamptz,
+        is_used -> Nullable<Bool>,
+        is_revoked -> Nullable<Bool>,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Nullable<Timestamptz>,
+        updated_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -175,6 +205,8 @@ diesel::table! {
         #[max_length = 20]
         phone -> Nullable<Varchar>,
         avatar_url -> Nullable<Text>,
+        #[max_length = 255]
+        password_hash -> Varchar,
         is_host -> Nullable<Bool>,
         is_verified -> Nullable<Bool>,
         created_at -> Nullable<Timestamptz>,
@@ -186,6 +218,8 @@ diesel::joinable!(bookings -> experience_schedules (schedule_id));
 diesel::joinable!(bookings -> experiences (experience_id));
 diesel::joinable!(bookings -> users (user_id));
 diesel::joinable!(email_verification_tokens -> users (user_id));
+diesel::joinable!(sessions -> users (user_id));
+diesel::joinable!(access_tokens -> users (user_id));
 diesel::joinable!(experience_images -> experiences (experience_id));
 diesel::joinable!(experience_schedules -> experiences (experience_id));
 diesel::joinable!(experience_tags -> experiences (experience_id));
