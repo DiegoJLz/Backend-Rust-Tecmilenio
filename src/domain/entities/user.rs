@@ -15,6 +15,7 @@ pub struct User {
     pub last_name: String,
     pub phone: Option<String>,
     pub avatar_url: Option<String>,
+    pub password_hash: String,
     pub is_host: Option<bool>,
     pub is_verified: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,
@@ -29,6 +30,7 @@ impl User {
         first_name: String,
         last_name: String,
         phone: Option<String>,
+        password_hash: String,
     ) -> Self {
         let now = Utc::now();
 
@@ -40,6 +42,7 @@ impl User {
             last_name,
             phone,
             avatar_url: None,
+            password_hash,
             is_host: Some(false),
             is_verified: Some(false),
             created_at: Some(now),
@@ -99,6 +102,7 @@ pub struct NewUser {
     pub last_name: String,
     pub phone: Option<String>,
     pub avatar_url: Option<String>,
+    pub password_hash: String,
     pub is_host: Option<bool>,
     pub is_verified: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,
@@ -115,6 +119,7 @@ impl NewUser {
             last_name: user.last_name.clone(),
             phone: user.phone.clone(),
             avatar_url: user.avatar_url.clone(),
+            password_hash: user.password_hash.clone(),
             is_host: user.is_host,
             is_verified: user.is_verified,
             created_at: user.created_at,
