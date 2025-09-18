@@ -25,6 +25,11 @@ pub struct VerifyEmailRequest {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct VerifyEmailQueryParams {
+    pub token: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ForgotPasswordRequest {
     pub email: String,
 }
@@ -32,6 +37,17 @@ pub struct ForgotPasswordRequest {
 #[derive(Debug, Deserialize)]
 pub struct ResetPasswordRequest {
     pub token: String,
+    pub new_password: String,
+    pub confirm_password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResetPasswordQueryParams {
+    pub token: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResetPasswordBody {
     pub new_password: String,
     pub confirm_password: String,
 }
@@ -49,6 +65,7 @@ pub struct LoginResponse {
     pub access_token: String,
     pub token_type: String,
     pub expires_in: u64,
+    pub session_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -60,16 +77,34 @@ pub struct VerifyEmailResponse {
 #[derive(Debug, Serialize)]
 pub struct ForgotPasswordResponse {
     pub message: String,
+    pub token: Option<String>, // Solo para testing, no incluir en producción
 }
 
 #[derive(Debug, Serialize)]
 pub struct ResetPasswordResponse {
     pub message: String,
+    pub user: UserDto,
 }
 
 #[derive(Debug, Serialize)]
 pub struct LogoutResponse {
     pub message: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LogoutRequest {
+    pub session_token: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResendEmailVerificationRequest {
+    pub email: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ResendEmailVerificationResponse {
+    pub message: String,
+    pub token: Option<String>, // Solo para testing, no incluir en producción
 }
 
 // User DTO

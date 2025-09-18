@@ -22,6 +22,7 @@ pub struct RegisterUserUseCase {
     email_verification_repository: PostgresEmailVerificationRepository,
     password_service: BcryptPasswordService,
     token_service: DefaultTokenService,
+    send_email_use_case: crate::application::use_cases::send_email_use_case::SendEmailUseCase,
 }
 
 impl RegisterUserUseCase {
@@ -30,12 +31,14 @@ impl RegisterUserUseCase {
         email_verification_repository: PostgresEmailVerificationRepository,
         password_service: BcryptPasswordService,
         token_service: DefaultTokenService,
+        send_email_use_case: crate::application::use_cases::send_email_use_case::SendEmailUseCase,
     ) -> Self {
         Self {
             user_repository,
             email_verification_repository,
             password_service,
             token_service,
+            send_email_use_case,
         }
     }
 
@@ -59,34 +62,60 @@ impl RegisterUserUseCase {
         // Hash password
         let password_hash = self.password_service.hash_password(&request.password).await?;
 
+        // Clone values before moving them
+        let first_name = request.first_name.clone();
+        let last_name = request.last_name.clone();
+        let email = request.email.clone();
+
         // Create user entity
         let user_id = Uuid::new_v4();
         let user = User::new(
             user_id,
-            request.email.clone(),
+            request.email,
             username,
             request.first_name,
             request.last_name,
             request.phone,
+            password_hash.clone(),
         );
 
         // Save user to database
         let created_user = self.user_repository.create(&user, &password_hash).await?;
 
-        // Generate email verification token
-        let verification_token = self.token_service.generate_uuid_token().await?;
-        let email_verification = EmailVerificationToken::new(
+        // Generate email verification JWT token
+        let full_name = format!("{} {}", first_name, last_name);
+        let verification_token = self.token_service.generate_email_verification_jwt(
             user_id,
-            verification_token,
-            24, // 24 hours expiration
-        );
+            email.clone(),
+            full_name.clone(),
+        ).await?;
+
+        // Parse expiration from JWT (24 hours from now)
+        let expires_at = chrono::Utc::now() + chrono::Duration::hours(24);
+        let email_verification = EmailVerificationToken {
+            id: uuid::Uuid::new_v4(),
+            user_id,
+            token: verification_token,
+            expires_at,
+            is_used: Some(false),
+            created_at: Some(chrono::Utc::now()),
+        };
 
         // Save verification token
         self.email_verification_repository.create(&email_verification).await?;
 
-        // TODO: Send verification email
-        // For now, we'll just log the token
-        println!("Email verification token for {}: {}", request.email, email_verification.token);
+        // Send verification email
+        if let Err(email_error) = self.send_email_use_case
+            .send_email_verification(
+                email.clone(),
+                full_name.clone(),
+                email_verification.token.clone(),
+            )
+            .await
+        {
+            // Log the error but don't fail the registration
+            println!("Failed to send verification email to {}: {}", email, email_error);
+        }
 
         // Convert to DTO
         let user_dto = UserDto::from_domain(&created_user);
