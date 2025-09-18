@@ -1,1 +1,1 @@
-// REST API will be implemented here
+pub mod auth_routes;
