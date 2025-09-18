@@ -19,7 +19,9 @@ pub struct BcryptPasswordService;
 #[async_trait]
 impl PasswordService for BcryptPasswordService {
     async fn hash_password(&self, password: &str) -> Result<String, ApiError> {
-        bcrypt::hash(password, bcrypt::DEFAULT_COST)
+        // Using cost 12 for better security (higher than default 10)
+        // Cost 12 takes ~250ms to hash, making brute force attacks much harder
+        bcrypt::hash(password, 12)
             .map_err(|e| ApiError::with_details(
                 "PASSWORD_HASH_ERROR",
                 "Failed to hash password",
