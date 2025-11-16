@@ -1,8 +1,8 @@
+use crate::shared::error_types::{ApiError, ERROR_INTERNAL_SERVER_ERROR};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
-use crate::shared::error_types::{ApiError, ERROR_INTERNAL_SERVER_ERROR};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -15,7 +15,13 @@ pub struct Claims {
 }
 
 impl Claims {
-    pub fn new(user_id: Uuid, email: String, username: String, expiration_hours: u64, token_type: &str) -> Self {
+    pub fn new(
+        user_id: Uuid,
+        email: String,
+        username: String,
+        expiration_hours: u64,
+        token_type: &str,
+    ) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
@@ -48,8 +54,12 @@ impl JwtUtils {
         expiration_hours: u64,
         token_type: &str,
     ) -> Result<String, ApiError> {
-        let secret = std::env::var("JWT_SECRET")
-            .map_err(|_| ApiError::new("JWT_SECRET_NOT_SET", "JWT_SECRET environment variable not set"))?;
+        let secret = std::env::var("JWT_SECRET").map_err(|_| {
+            ApiError::new(
+                "JWT_SECRET_NOT_SET",
+                "JWT_SECRET environment variable not set",
+            )
+        })?;
 
         let claims = Claims::new(user_id, email, username, expiration_hours, token_type);
 
@@ -69,8 +79,12 @@ impl JwtUtils {
 
     /// Validates and decodes a JWT token
     pub fn validate_token(token: &str, token_type: &str) -> Result<Claims, ApiError> {
-        let secret = std::env::var("JWT_SECRET")
-            .map_err(|_| ApiError::new("JWT_SECRET_NOT_SET", "JWT_SECRET environment variable not set"))?;
+        let secret = std::env::var("JWT_SECRET").map_err(|_| {
+            ApiError::new(
+                "JWT_SECRET_NOT_SET",
+                "JWT_SECRET environment variable not set",
+            )
+        })?;
 
         let mut validation = Validation::new(Algorithm::HS256);
         validation.validate_exp = true;
@@ -82,11 +96,7 @@ impl JwtUtils {
             &validation,
         )
         .map_err(|e| {
-            ApiError::with_details(
-                "INVALID_TOKEN",
-                "Invalid or expired token",
-                &e.to_string(),
-            )
+            ApiError::with_details("INVALID_TOKEN", "Invalid or expired token", &e.to_string())
         })?;
 
         let claims = token_data.claims;
