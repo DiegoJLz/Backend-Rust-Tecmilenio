@@ -9,7 +9,7 @@ actix-web = "4.4"
 tokio = { version = "1.0", features = ["full"] }
 
 # Database
-diesel = { version = "2.2.10", features = ["postgres", "r2d2", "chrono", "uuid", "serde_json", "64-column-tables"] }
+diesel = { version = "2.2.10", features = ["postgres", "r2d2", "chrono", "uuid", "serde_json", "64-column-tables", "numeric"] }
 diesel_migrations = "2.1.0"
 diesel-derive-enum = { version = "2.1.0", features = ["postgres"] }
 
@@ -25,6 +25,9 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Environment variables
 dotenvy = "0.15"
+
+# Decimal / numeric support
+bigdecimal = { version = "0.4", features = ["serde"] }
 
 # Error handling
 anyhow = "1.0"

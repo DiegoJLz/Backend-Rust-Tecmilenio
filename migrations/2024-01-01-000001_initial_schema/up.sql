@@ -38,7 +38,10 @@ CREATE TABLE IF NOT EXISTS categories (
     name VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
     icon_url TEXT,
+    background_image_url TEXT,
     is_active BOOLEAN DEFAULT TRUE,
+    show_on_home BOOLEAN DEFAULT TRUE,
+    home_order INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -47,7 +50,11 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS experiences (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(200) NOT NULL,
+    slug VARCHAR(200) UNIQUE NOT NULL,
+    summary TEXT,
     description TEXT NOT NULL,
+    hero_image_url TEXT,
+    thumbnail_url TEXT,
     host_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     category_id UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
     location_id UUID NOT NULL REFERENCES locations(id) ON DELETE RESTRICT,
@@ -56,6 +63,12 @@ CREATE TABLE IF NOT EXISTS experiences (
     min_participants INTEGER NOT NULL DEFAULT 1 CHECK (min_participants > 0),
     duration_hours DECIMAL(4, 2) NOT NULL CHECK (duration_hours > 0),
     difficulty_level INTEGER CHECK (difficulty_level BETWEEN 1 AND 5),
+    average_rating DECIMAL(3, 2) DEFAULT 0 CHECK (average_rating >= 0),
+    review_count INTEGER DEFAULT 0 CHECK (review_count >= 0),
+    language VARCHAR(50) DEFAULT 'es',
+    currency VARCHAR(3) DEFAULT 'MXN',
+    featured_rank INTEGER,
+    is_featured BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -150,6 +163,93 @@ CREATE TABLE IF NOT EXISTS experience_tags (
     CONSTRAINT unique_experience_tag UNIQUE (experience_id, tag_name)
 );
 
+-- Landing highlights table
+CREATE TABLE IF NOT EXISTS landing_highlights (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title VARCHAR(150) NOT NULL,
+    subtitle VARCHAR(255),
+    description TEXT,
+    image_url TEXT NOT NULL,
+    mobile_image_url TEXT,
+    cta_label VARCHAR(100),
+    cta_url TEXT,
+    badge_label VARCHAR(50),
+    display_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Promotions table
+CREATE TABLE IF NOT EXISTS promotions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(150) NOT NULL,
+    headline VARCHAR(255),
+    description TEXT,
+    discount_type VARCHAR(20) NOT NULL CHECK (discount_type IN ('percentage', 'amount', 'bundle')),
+    discount_value DECIMAL(6, 2) NOT NULL CHECK (discount_value >= 0),
+    start_date TIMESTAMP WITH TIME ZONE,
+    end_date TIMESTAMP WITH TIME ZONE,
+    terms TEXT,
+    image_url TEXT,
+    badge_label VARCHAR(100),
+    cta_label VARCHAR(100),
+    cta_url TEXT,
+    is_stackable BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS promotion_experiences (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    promotion_id UUID NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+    experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_promotion_experience UNIQUE (promotion_id, experience_id)
+);
+
+-- Curated experience collections for landing tabs
+CREATE TABLE IF NOT EXISTS experience_collections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug VARCHAR(100) UNIQUE NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    subtitle VARCHAR(255),
+    description TEXT,
+    cover_image_url TEXT,
+    filter_criteria JSONB,
+    display_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS experience_collection_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    collection_id UUID NOT NULL REFERENCES experience_collections(id) ON DELETE CASCADE,
+    experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_collection_item UNIQUE (collection_id, experience_id)
+);
+
+-- Landing testimonials table
+CREATE TABLE IF NOT EXISTS landing_testimonials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    review_id UUID REFERENCES reviews(id) ON DELETE SET NULL,
+    author_name VARCHAR(150) NOT NULL,
+    author_city VARCHAR(150),
+    author_country VARCHAR(150),
+    avatar_url TEXT,
+    quote TEXT NOT NULL,
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+    featured_experience_id UUID REFERENCES experiences(id) ON DELETE SET NULL,
+    display_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Email verification tokens table
 CREATE TABLE IF NOT EXISTS email_verification_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -193,12 +293,17 @@ CREATE TABLE IF NOT EXISTS access_tokens (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_is_host ON users(is_host);
+CREATE INDEX IF NOT EXISTS idx_categories_show_on_home ON categories(show_on_home);
+CREATE INDEX IF NOT EXISTS idx_categories_home_order ON categories(home_order);
 
 CREATE INDEX IF NOT EXISTS idx_experiences_host_id ON experiences(host_id);
 CREATE INDEX IF NOT EXISTS idx_experiences_category_id ON experiences(category_id);
 CREATE INDEX IF NOT EXISTS idx_experiences_location_id ON experiences(location_id);
 CREATE INDEX IF NOT EXISTS idx_experiences_price ON experiences(price_per_person);
 CREATE INDEX IF NOT EXISTS idx_experiences_is_active ON experiences(is_active);
+CREATE INDEX IF NOT EXISTS idx_experiences_slug ON experiences(slug);
+CREATE INDEX IF NOT EXISTS idx_experiences_is_featured ON experiences(is_featured);
+CREATE INDEX IF NOT EXISTS idx_experiences_featured_rank ON experiences(featured_rank);
 
 CREATE INDEX IF NOT EXISTS idx_experience_schedules_experience_id ON experience_schedules(experience_id);
 CREATE INDEX IF NOT EXISTS idx_experience_schedules_start_datetime ON experience_schedules(start_datetime);
@@ -216,6 +321,19 @@ CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 CREATE INDEX IF NOT EXISTS idx_reviews_experience_id ON reviews(experience_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_rating ON reviews(rating);
+
+CREATE INDEX IF NOT EXISTS idx_landing_highlights_is_active ON landing_highlights(is_active);
+CREATE INDEX IF NOT EXISTS idx_landing_highlights_display_order ON landing_highlights(display_order);
+CREATE INDEX IF NOT EXISTS idx_promotions_is_active ON promotions(is_active);
+CREATE INDEX IF NOT EXISTS idx_promotions_window ON promotions(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_promotion_experiences_promotion_id ON promotion_experiences(promotion_id);
+CREATE INDEX IF NOT EXISTS idx_promotion_experiences_experience_id ON promotion_experiences(experience_id);
+CREATE INDEX IF NOT EXISTS idx_experience_collections_slug ON experience_collections(slug);
+CREATE INDEX IF NOT EXISTS idx_experience_collections_is_active ON experience_collections(is_active);
+CREATE INDEX IF NOT EXISTS idx_experience_collection_items_collection_id ON experience_collection_items(collection_id);
+CREATE INDEX IF NOT EXISTS idx_experience_collection_items_experience_id ON experience_collection_items(experience_id);
+CREATE INDEX IF NOT EXISTS idx_landing_testimonials_is_active ON landing_testimonials(is_active);
+CREATE INDEX IF NOT EXISTS idx_landing_testimonials_display_order ON landing_testimonials(display_order);
 
 CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_token ON email_verification_tokens(token);
