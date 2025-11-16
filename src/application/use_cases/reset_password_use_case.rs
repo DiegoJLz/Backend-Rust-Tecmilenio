@@ -1,7 +1,12 @@
 use crate::domain::entities::user::User;
-use crate::domain::repositories::{user_repository::UserRepository, access_token_repository::AccessTokenRepository};
+use crate::domain::repositories::{
+    access_token_repository::AccessTokenRepository, user_repository::UserRepository,
+};
 use crate::domain::services::{password_service::PasswordService, token_service::TokenService};
-use crate::shared::error_types::{ApiError, ERROR_INVALID_TOKEN, ERROR_TOKEN_EXPIRED, ERROR_TOKEN_ALREADY_USED, ERROR_PASSWORDS_DO_NOT_MATCH};
+use crate::shared::error_types::{
+    ApiError, ERROR_INVALID_TOKEN, ERROR_PASSWORDS_DO_NOT_MATCH, ERROR_TOKEN_ALREADY_USED,
+    ERROR_TOKEN_EXPIRED,
+};
 
 #[derive(Clone)]
 pub struct ResetPasswordUseCase {
@@ -26,13 +31,18 @@ impl ResetPasswordUseCase {
         }
     }
 
-    pub async fn execute(&self, token: String, new_password: String, confirm_password: String) -> Result<User, ApiError> {
+    pub async fn execute(
+        &self,
+        token: String,
+        new_password: String,
+        confirm_password: String,
+    ) -> Result<User, ApiError> {
         // 1. Validar que las contraseñas coincidan
         if new_password != confirm_password {
             return Err(ApiError::with_details(
                 ERROR_PASSWORDS_DO_NOT_MATCH,
                 "Passwords do not match",
-                "The new password and confirmation password must be identical"
+                "The new password and confirmation password must be identical",
             ));
         }
 
@@ -40,26 +50,30 @@ impl ResetPasswordUseCase {
         crate::shared::validation_utils::ValidationUtils::validate_password(&new_password)?;
 
         // 3. Validar el JWT token de password reset
-        let (user_id, _email, _username) = self.token_service
+        let (user_id, _email, _username) = self
+            .token_service
             .validate_password_reset_token(&token)
             .await?;
 
         // 4. Buscar el token en la base de datos para verificar que existe y no está usado
-        let access_token = self.access_token_repository
+        let access_token = self
+            .access_token_repository
             .find_by_token(&token)
             .await?
-            .ok_or_else(|| ApiError::with_details(
-                ERROR_INVALID_TOKEN,
-                "Invalid token",
-                "The provided password reset token is invalid"
-            ))?;
+            .ok_or_else(|| {
+                ApiError::with_details(
+                    ERROR_INVALID_TOKEN,
+                    "Invalid token",
+                    "The provided password reset token is invalid",
+                )
+            })?;
 
         // 5. Verificar que el token es de tipo password_reset
         if !access_token.is_password_reset_token() {
             return Err(ApiError::with_details(
                 ERROR_INVALID_TOKEN,
                 "Invalid token type",
-                "The provided token is not a password reset token"
+                "The provided token is not a password reset token",
             ));
         }
 
@@ -68,7 +82,7 @@ impl ResetPasswordUseCase {
             return Err(ApiError::with_details(
                 ERROR_TOKEN_ALREADY_USED,
                 "Token already used",
-                "This password reset token has already been used"
+                "This password reset token has already been used",
             ));
         }
 
@@ -77,7 +91,7 @@ impl ResetPasswordUseCase {
             return Err(ApiError::with_details(
                 ERROR_INVALID_TOKEN,
                 "Token revoked",
-                "This password reset token has been revoked"
+                "This password reset token has been revoked",
             ));
         }
 
@@ -86,24 +100,25 @@ impl ResetPasswordUseCase {
             return Err(ApiError::with_details(
                 ERROR_TOKEN_EXPIRED,
                 "Token expired",
-                "This password reset token has expired"
+                "This password reset token has expired",
             ));
         }
 
         // 9. Buscar el usuario
-        let user = self.user_repository
+        let user = self
+            .user_repository
             .find_by_id(user_id)
             .await?
-            .ok_or_else(|| ApiError::with_details(
-                ERROR_INVALID_TOKEN,
-                "User not found",
-                "The user associated with this token was not found"
-            ))?;
+            .ok_or_else(|| {
+                ApiError::with_details(
+                    ERROR_INVALID_TOKEN,
+                    "User not found",
+                    "The user associated with this token was not found",
+                )
+            })?;
 
         // 10. Hashear la nueva contraseña
-        let new_password_hash = self.password_service
-            .hash_password(&new_password)
-            .await?;
+        let new_password_hash = self.password_service.hash_password(&new_password).await?;
 
         // 11. Actualizar la contraseña del usuario
         self.user_repository

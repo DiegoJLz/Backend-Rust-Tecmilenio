@@ -1,9 +1,12 @@
-use crate::domain::entities::{user::User, session::Session, access_token::AccessToken};
-use crate::domain::repositories::{user_repository::UserRepository, session_repository::SessionRepository, access_token_repository::AccessTokenRepository};
+use crate::domain::entities::{access_token::AccessToken, session::Session, user::User};
+use crate::domain::repositories::{
+    access_token_repository::AccessTokenRepository, session_repository::SessionRepository,
+    user_repository::UserRepository,
+};
 use crate::domain::services::{password_service::PasswordService, token_service::TokenService};
 use crate::shared::error_types::{ApiError, ERROR_INVALID_EMAIL, ERROR_INVALID_PASSWORD};
+use chrono::{Duration, Utc};
 use uuid::Uuid;
-use chrono::{Utc, Duration};
 
 #[derive(Clone)]
 pub struct LoginUserUseCase {
@@ -31,41 +34,54 @@ impl LoginUserUseCase {
         }
     }
 
-    pub async fn execute(&self, email: String, password: String, ip_address: Option<String>, user_agent: Option<String>) -> Result<(User, String, String), ApiError> {
+    pub async fn execute(
+        &self,
+        email: String,
+        password: String,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<(User, String, String), ApiError> {
         // 1. Validar formato de email
         crate::shared::validation_utils::ValidationUtils::validate_email(&email)?;
 
         // 2. Buscar usuario por email
-        let user = self.user_repository
+        let user = self
+            .user_repository
             .find_by_email(&email)
             .await?
-            .ok_or_else(|| ApiError::with_details(
-                ERROR_INVALID_EMAIL,
-                "Invalid email or password",
-                "The provided email or password is incorrect"
-            ))?;
+            .ok_or_else(|| {
+                ApiError::with_details(
+                    ERROR_INVALID_EMAIL,
+                    "Invalid email or password",
+                    "The provided email or password is incorrect",
+                )
+            })?;
 
         // 3. Verificar que el usuario esté verificado
         if !user.is_verified.unwrap_or(false) {
             return Err(ApiError::with_details(
                 ERROR_INVALID_EMAIL,
                 "Email not verified",
-                "Please verify your email before logging in"
+                "Please verify your email before logging in",
             ));
         }
 
         // 4. Obtener hash de contraseña del usuario
-        let stored_password_hash = self.user_repository
+        let stored_password_hash = self
+            .user_repository
             .get_password_hash(user.id)
             .await?
-            .ok_or_else(|| ApiError::with_details(
-                ERROR_INVALID_PASSWORD,
-                "Invalid email or password",
-                "The provided email or password is incorrect"
-            ))?;
+            .ok_or_else(|| {
+                ApiError::with_details(
+                    ERROR_INVALID_PASSWORD,
+                    "Invalid email or password",
+                    "The provided email or password is incorrect",
+                )
+            })?;
 
         // 5. Verificar contraseña
-        let is_password_valid = self.password_service
+        let is_password_valid = self
+            .password_service
             .verify_password(&password, &stored_password_hash)
             .await?;
 
@@ -73,17 +89,19 @@ impl LoginUserUseCase {
             return Err(ApiError::with_details(
                 ERROR_INVALID_PASSWORD,
                 "Invalid email or password",
-                "The provided email or password is incorrect"
+                "The provided email or password is incorrect",
             ));
         }
 
         // 6. Generar access token JWT
-        let access_token = self.token_service
+        let access_token = self
+            .token_service
             .generate_access_token(user.id, user.email.clone(), user.username.clone())
             .await?;
 
         // 7. Generar refresh token JWT
-        let refresh_token = self.token_service
+        let refresh_token = self
+            .token_service
             .generate_refresh_token(user.id, user.email.clone(), user.username.clone())
             .await?;
 
@@ -115,7 +133,9 @@ impl LoginUserUseCase {
             Utc::now() + Duration::hours(24),
             None,
         );
-        self.access_token_repository.create(&access_token_entity).await?;
+        self.access_token_repository
+            .create(&access_token_entity)
+            .await?;
 
         // 11. Guardar refresh token en access_tokens table
         let refresh_token_entity = AccessToken::new(
@@ -126,7 +146,9 @@ impl LoginUserUseCase {
             Utc::now() + Duration::days(30), // 30 días
             None,
         );
-        self.access_token_repository.create(&refresh_token_entity).await?;
+        self.access_token_repository
+            .create(&refresh_token_entity)
+            .await?;
 
         Ok((user, access_token, session_token))
     }

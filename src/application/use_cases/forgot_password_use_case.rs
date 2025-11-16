@@ -1,9 +1,11 @@
 use crate::domain::entities::access_token::AccessToken;
-use crate::domain::repositories::{user_repository::UserRepository, access_token_repository::AccessTokenRepository};
+use crate::domain::repositories::{
+    access_token_repository::AccessTokenRepository, user_repository::UserRepository,
+};
 use crate::domain::services::token_service::TokenService;
 use crate::shared::error_types::{ApiError, ERROR_INVALID_EMAIL, ERROR_USER_NOT_FOUND};
+use chrono::{Duration, Utc};
 use uuid::Uuid;
-use chrono::{Utc, Duration};
 
 #[derive(Clone)]
 pub struct ForgotPasswordUseCase {
@@ -33,21 +35,24 @@ impl ForgotPasswordUseCase {
         crate::shared::validation_utils::ValidationUtils::validate_email(&email)?;
 
         // 2. Buscar usuario por email
-        let user = self.user_repository
+        let user = self
+            .user_repository
             .find_by_email(&email)
             .await?
-            .ok_or_else(|| ApiError::with_details(
-                ERROR_USER_NOT_FOUND,
-                "User not found",
-                "No user found with the provided email address"
-            ))?;
+            .ok_or_else(|| {
+                ApiError::with_details(
+                    ERROR_USER_NOT_FOUND,
+                    "User not found",
+                    "No user found with the provided email address",
+                )
+            })?;
 
         // 3. Verificar que el usuario esté verificado
         if !user.is_verified.unwrap_or(false) {
             return Err(ApiError::with_details(
                 ERROR_INVALID_EMAIL,
                 "Email not verified",
-                "Please verify your email before requesting password reset"
+                "Please verify your email before requesting password reset",
             ));
         }
 
@@ -57,7 +62,8 @@ impl ForgotPasswordUseCase {
             .await?;
 
         // 5. Generar nuevo token de password reset JWT
-        let password_reset_token = self.token_service
+        let password_reset_token = self
+            .token_service
             .generate_password_reset_token(user.id, user.email.clone(), user.username.clone())
             .await?;
 
@@ -75,10 +81,13 @@ impl ForgotPasswordUseCase {
             })),
         );
 
-        self.access_token_repository.create(&access_token_entity).await?;
+        self.access_token_repository
+            .create(&access_token_entity)
+            .await?;
 
         // 7. Enviar email con el token de reset
-        if let Err(email_error) = self.send_email_use_case
+        if let Err(email_error) = self
+            .send_email_use_case
             .send_password_reset(
                 user.email.clone(),
                 user.username.clone(),
@@ -87,7 +96,10 @@ impl ForgotPasswordUseCase {
             .await
         {
             // Log the error but don't fail the forgot password process
-            println!("Failed to send password reset email to {}: {}", user.email, email_error);
+            println!(
+                "Failed to send password reset email to {}: {}",
+                user.email, email_error
+            );
         }
 
         Ok(password_reset_token)
