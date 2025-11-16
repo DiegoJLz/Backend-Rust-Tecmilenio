@@ -1,6 +1,6 @@
-use async_trait::async_trait;
 use crate::domain::entities::email::{Email, EmailType};
 use crate::shared::error_types::ApiError;
+use async_trait::async_trait;
 
 #[async_trait]
 pub trait EmailService: Send + Sync {
@@ -24,11 +24,7 @@ pub trait EmailService: Send + Sync {
     ) -> Result<(), ApiError>;
 
     /// Sends a welcome email
-    async fn send_welcome_email(
-        &self,
-        to_email: String,
-        to_name: String,
-    ) -> Result<(), ApiError>;
+    async fn send_welcome_email(&self, to_email: String, to_name: String) -> Result<(), ApiError>;
 }
 
 /// Email template service for generating email content
@@ -48,8 +44,5 @@ pub trait EmailTemplateService: Send + Sync {
     ) -> (String, String); // (html_content, text_content)
 
     /// Generates welcome email template
-    fn generate_welcome_template(
-        &self,
-        user_name: &str,
-    ) -> (String, String); // (html_content, text_content)
+    fn generate_welcome_template(&self, user_name: &str) -> (String, String); // (html_content, text_content)
 }
