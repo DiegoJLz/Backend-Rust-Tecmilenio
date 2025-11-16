@@ -13,12 +13,13 @@ pub struct ResendOfficialService {
 
 impl ResendOfficialService {
     pub fn new() -> Result<Self, ApiError> {
-        let api_key = env::var("RESEND_API_KEY")
-            .map_err(|_| ApiError::with_details(
+        let api_key = env::var("RESEND_API_KEY").map_err(|_| {
+            ApiError::with_details(
                 ERROR_INTERNAL_SERVER_ERROR,
                 "Email configuration error",
-                "RESEND_API_KEY environment variable not set"
-            ))?;
+                "RESEND_API_KEY environment variable not set",
+            )
+        })?;
 
         let client = Resend::new(&api_key);
 
@@ -33,12 +34,13 @@ impl ResendOfficialService {
         html_content: &str,
         text_content: &str,
     ) -> Result<(), ApiError> {
-        let from_email = env::var("RESEND_FROM_EMAIL")
-            .map_err(|_| ApiError::with_details(
+        let from_email = env::var("RESEND_FROM_EMAIL").map_err(|_| {
+            ApiError::with_details(
                 ERROR_INTERNAL_SERVER_ERROR,
                 "Email configuration error",
-                "RESEND_FROM_EMAIL environment variable not set"
-            ))?;
+                "RESEND_FROM_EMAIL environment variable not set",
+            )
+        })?;
 
         println!("📧 Enviando email real via Resend a: {}", to_email);
         println!("📧 Desde: {}", from_email);
@@ -59,7 +61,7 @@ impl ResendOfficialService {
                 Err(ApiError::with_details(
                     ERROR_INTERNAL_SERVER_ERROR,
                     "Email sending error",
-                    &format!("Failed to send email via Resend: {}", e)
+                    &format!("Failed to send email via Resend: {}", e),
                 ))
             }
         }
@@ -68,7 +70,10 @@ impl ResendOfficialService {
 
 #[async_trait]
 impl EmailService for ResendOfficialService {
-    async fn send_email(&self, _email: &crate::domain::entities::email::Email) -> Result<(), ApiError> {
+    async fn send_email(
+        &self,
+        _email: &crate::domain::entities::email::Email,
+    ) -> Result<(), ApiError> {
         // Esta función no se usa en nuestro caso, pero es requerida por el trait
         Ok(())
     }
@@ -79,7 +84,10 @@ impl EmailService for ResendOfficialService {
         to_name: String,
         verification_token: String,
     ) -> Result<(), ApiError> {
-        let verification_link = format!("http://localhost:3000/verify-email?token={}", verification_token);
+        let verification_link = format!(
+            "http://localhost:3000/verify-email?token={}",
+            verification_token
+        );
 
         let html_content = format!(
             r#"
@@ -134,7 +142,8 @@ impl EmailService for ResendOfficialService {
             "🎉 Verifica tu Email - Marketplace Local",
             &html_content,
             &text_content,
-        ).await
+        )
+        .await
     }
 
     async fn send_password_reset(
@@ -187,14 +196,11 @@ impl EmailService for ResendOfficialService {
             "🔐 Restablece tu Contraseña - Marketplace Local",
             &html_content,
             &text_content,
-        ).await
+        )
+        .await
     }
 
-    async fn send_welcome_email(
-        &self,
-        to_email: String,
-        to_name: String,
-    ) -> Result<(), ApiError> {
+    async fn send_welcome_email(&self, to_email: String, to_name: String) -> Result<(), ApiError> {
         let html_content = format!(
             "<div style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;\">
                 <div style=\"background: #28a745; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;\">
@@ -229,6 +235,7 @@ impl EmailService for ResendOfficialService {
             "🎉 ¡Bienvenido a Marketplace Local!",
             &html_content,
             &text_content,
-        ).await
+        )
+        .await
     }
 }

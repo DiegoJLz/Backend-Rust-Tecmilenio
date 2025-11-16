@@ -166,10 +166,7 @@ IMPORTANTE:
         (html_content, text_content)
     }
 
-    fn generate_welcome_template(
-        &self,
-        user_name: &str,
-    ) -> (String, String) {
+    fn generate_welcome_template(&self, user_name: &str) -> (String, String) {
         let html_content = format!(
             r#"
             <!DOCTYPE html>
