@@ -1,19 +1,32 @@
 use crate::application::{
-    dto::auth_dto::{RegisterUserRequest, RegisterUserResponse, VerifyEmailRequest, VerifyEmailResponse, LoginRequest, LoginResponse, ForgotPasswordRequest, ForgotPasswordResponse, ResetPasswordRequest, ResetPasswordResponse, LogoutRequest, LogoutResponse, ResendEmailVerificationRequest, ResendEmailVerificationResponse},
-    use_cases::{register_user_use_case::RegisterUserUseCase, verify_email_use_case::VerifyEmailUseCase, login_user_use_case::LoginUserUseCase, forgot_password_use_case::ForgotPasswordUseCase, reset_password_use_case::ResetPasswordUseCase, logout_use_case::LogoutUseCase, resend_email_verification_use_case::ResendEmailVerificationUseCase, send_email_use_case::SendEmailUseCase},
-};
-use crate::infrastructure::repositories::{
-    postgres_user_repository::PostgresUserRepository,
-    postgres_email_verification_repository::PostgresEmailVerificationRepository,
-    postgres_session_repository::PostgresSessionRepository,
-    postgres_access_token_repository::PostgresAccessTokenRepository,
+    dto::auth_dto::{
+        ForgotPasswordRequest, ForgotPasswordResponse, LoginRequest, LoginResponse, LogoutRequest,
+        LogoutResponse, RegisterUserRequest, RegisterUserResponse, ResendEmailVerificationRequest,
+        ResendEmailVerificationResponse, ResetPasswordRequest, ResetPasswordResponse,
+        VerifyEmailRequest, VerifyEmailResponse,
+    },
+    use_cases::{
+        forgot_password_use_case::ForgotPasswordUseCase, login_user_use_case::LoginUserUseCase,
+        logout_use_case::LogoutUseCase, register_user_use_case::RegisterUserUseCase,
+        resend_email_verification_use_case::ResendEmailVerificationUseCase,
+        reset_password_use_case::ResetPasswordUseCase, send_email_use_case::SendEmailUseCase,
+        verify_email_use_case::VerifyEmailUseCase,
+    },
 };
 use crate::domain::{
-    repositories::{user_repository::UserRepository, email_verification_repository::EmailVerificationRepository},
-    services::{
-        password_service::{PasswordService, BcryptPasswordService},
-        token_service::{TokenService, DefaultTokenService},
+    repositories::{
+        email_verification_repository::EmailVerificationRepository, user_repository::UserRepository,
     },
+    services::{
+        password_service::{BcryptPasswordService, PasswordService},
+        token_service::{DefaultTokenService, TokenService},
+    },
+};
+use crate::infrastructure::repositories::{
+    postgres_access_token_repository::PostgresAccessTokenRepository,
+    postgres_email_verification_repository::PostgresEmailVerificationRepository,
+    postgres_session_repository::PostgresSessionRepository,
+    postgres_user_repository::PostgresUserRepository,
 };
 use crate::shared::error_types::ApiError;
 
@@ -81,10 +94,8 @@ impl AuthHandler {
             token_service.clone(),
         );
 
-        let logout_use_case = LogoutUseCase::new(
-            session_repository.clone(),
-            access_token_repository.clone(),
-        );
+        let logout_use_case =
+            LogoutUseCase::new(session_repository.clone(), access_token_repository.clone());
 
         let resend_email_verification_use_case = ResendEmailVerificationUseCase::new(
             user_repository,
@@ -104,11 +115,17 @@ impl AuthHandler {
         })
     }
 
-    pub async fn register_user(&self, request: RegisterUserRequest) -> Result<RegisterUserResponse, ApiError> {
+    pub async fn register_user(
+        &self,
+        request: RegisterUserRequest,
+    ) -> Result<RegisterUserResponse, ApiError> {
         self.register_user_use_case.execute(request).await
     }
 
-    pub async fn verify_email(&self, request: VerifyEmailRequest) -> Result<VerifyEmailResponse, ApiError> {
+    pub async fn verify_email(
+        &self,
+        request: VerifyEmailRequest,
+    ) -> Result<VerifyEmailResponse, ApiError> {
         let user = self.verify_email_use_case.execute(request.token).await?;
 
         let user_dto = crate::application::dto::auth_dto::UserDto::from_domain(&user);
@@ -119,8 +136,16 @@ impl AuthHandler {
         })
     }
 
-    pub async fn login_user(&self, request: LoginRequest, ip_address: Option<String>, user_agent: Option<String>) -> Result<LoginResponse, ApiError> {
-        let (user, access_token, session_token) = self.login_user_use_case.execute(request.email, request.password, ip_address, user_agent).await?;
+    pub async fn login_user(
+        &self,
+        request: LoginRequest,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<LoginResponse, ApiError> {
+        let (user, access_token, session_token) = self
+            .login_user_use_case
+            .execute(request.email, request.password, ip_address, user_agent)
+            .await?;
 
         let user_dto = crate::application::dto::auth_dto::UserDto::from_domain(&user);
 
@@ -133,7 +158,10 @@ impl AuthHandler {
         })
     }
 
-    pub async fn forgot_password(&self, request: ForgotPasswordRequest) -> Result<ForgotPasswordResponse, ApiError> {
+    pub async fn forgot_password(
+        &self,
+        request: ForgotPasswordRequest,
+    ) -> Result<ForgotPasswordResponse, ApiError> {
         let token = self.forgot_password_use_case.execute(request.email).await?;
 
         Ok(ForgotPasswordResponse {
@@ -142,8 +170,18 @@ impl AuthHandler {
         })
     }
 
-    pub async fn reset_password(&self, request: ResetPasswordRequest) -> Result<ResetPasswordResponse, ApiError> {
-        let user = self.reset_password_use_case.execute(request.token, request.new_password, request.confirm_password).await?;
+    pub async fn reset_password(
+        &self,
+        request: ResetPasswordRequest,
+    ) -> Result<ResetPasswordResponse, ApiError> {
+        let user = self
+            .reset_password_use_case
+            .execute(
+                request.token,
+                request.new_password,
+                request.confirm_password,
+            )
+            .await?;
 
         Ok(ResetPasswordResponse {
             message: "Password reset successfully".to_string(),
@@ -159,8 +197,14 @@ impl AuthHandler {
         })
     }
 
-    pub async fn resend_email_verification(&self, request: ResendEmailVerificationRequest) -> Result<ResendEmailVerificationResponse, ApiError> {
-        let token = self.resend_email_verification_use_case.execute(request.email).await?;
+    pub async fn resend_email_verification(
+        &self,
+        request: ResendEmailVerificationRequest,
+    ) -> Result<ResendEmailVerificationResponse, ApiError> {
+        let token = self
+            .resend_email_verification_use_case
+            .execute(request.email)
+            .await?;
 
         Ok(ResendEmailVerificationResponse {
             message: "Email verification token resent successfully".to_string(),
