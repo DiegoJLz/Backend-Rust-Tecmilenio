@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use uuid::Uuid;
 use crate::domain::entities::session::Session;
 use crate::shared::error_types::ApiError;
+use async_trait::async_trait;
+use uuid::Uuid;
 
 #[async_trait]
 pub trait SessionRepository: Send + Sync {
@@ -12,13 +12,17 @@ pub trait SessionRepository: Send + Sync {
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Session>, ApiError>;
 
     /// Finds a session by session token
-    async fn find_by_session_token(&self, session_token: &str) -> Result<Option<Session>, ApiError>;
+    async fn find_by_session_token(&self, session_token: &str)
+        -> Result<Option<Session>, ApiError>;
 
     /// Finds a session by access token
     async fn find_by_access_token(&self, access_token: &str) -> Result<Option<Session>, ApiError>;
 
     /// Finds all active sessions for a user
-    async fn find_active_sessions_by_user_id(&self, user_id: Uuid) -> Result<Vec<Session>, ApiError>;
+    async fn find_active_sessions_by_user_id(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<Session>, ApiError>;
 
     /// Updates a session
     async fn update(&self, session: &Session) -> Result<Session, ApiError>;

@@ -37,21 +37,23 @@ impl ResendEmailService {
     }
 
     fn get_api_key() -> Result<String, ApiError> {
-        env::var("RESEND_API_KEY")
-            .map_err(|_| ApiError::with_details(
+        env::var("RESEND_API_KEY").map_err(|_| {
+            ApiError::with_details(
                 ERROR_INTERNAL_SERVER_ERROR,
                 "Email configuration error",
-                "RESEND_API_KEY environment variable not set"
-            ))
+                "RESEND_API_KEY environment variable not set",
+            )
+        })
     }
 
     fn get_from_email() -> Result<String, ApiError> {
-        env::var("RESEND_FROM_EMAIL")
-            .map_err(|_| ApiError::with_details(
+        env::var("RESEND_FROM_EMAIL").map_err(|_| {
+            ApiError::with_details(
                 ERROR_INTERNAL_SERVER_ERROR,
                 "Email configuration error",
-                "RESEND_FROM_EMAIL environment variable not set"
-            ))
+                "RESEND_FROM_EMAIL environment variable not set",
+            )
+        })
     }
 
     async fn send_raw_email(
@@ -84,36 +86,46 @@ impl ResendEmailService {
             return Ok(());
         }
 
-        let response = self.client
+        let response = self
+            .client
             .post("https://api.resend.com/emails")
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| ApiError::with_details(
-                ERROR_INTERNAL_SERVER_ERROR,
-                "Email sending error",
-                &format!("Failed to send HTTP request: {}", e)
-            ))?;
+            .map_err(|e| {
+                ApiError::with_details(
+                    ERROR_INTERNAL_SERVER_ERROR,
+                    "Email sending error",
+                    &format!("Failed to send HTTP request: {}", e),
+                )
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            println!("❌ Resend API Error - Status: {}, Body: {}", status, error_text);
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            println!(
+                "❌ Resend API Error - Status: {}, Body: {}",
+                status, error_text
+            );
             return Err(ApiError::with_details(
                 ERROR_INTERNAL_SERVER_ERROR,
                 "Email sending error",
-                &format!("Resend API error (Status: {}): {}", status, error_text)
+                &format!("Resend API error (Status: {}): {}", status, error_text),
             ));
         }
 
-        let _email_response: ResendEmailResponse = response.json().await
-            .map_err(|e| ApiError::with_details(
+        let _email_response: ResendEmailResponse = response.json().await.map_err(|e| {
+            ApiError::with_details(
                 ERROR_INTERNAL_SERVER_ERROR,
                 "Email sending error",
-                &format!("Failed to parse response: {}", e)
-            ))?;
+                &format!("Failed to parse response: {}", e),
+            )
+        })?;
 
         Ok(())
     }
@@ -127,7 +139,8 @@ impl EmailService for ResendEmailService {
             &email.subject,
             &email.html_content,
             &email.text_content,
-        ).await
+        )
+        .await
     }
 
     async fn send_email_verification(
@@ -136,7 +149,8 @@ impl EmailService for ResendEmailService {
         to_name: String,
         verification_token: String,
     ) -> Result<(), ApiError> {
-        let (html_content, text_content) = self.template_service
+        let (html_content, text_content) = self
+            .template_service
             .generate_email_verification_template(&to_name, &verification_token);
 
         self.send_raw_email(
@@ -144,7 +158,8 @@ impl EmailService for ResendEmailService {
             "Verifica tu Email - Marketplace Local",
             &html_content,
             &text_content,
-        ).await
+        )
+        .await
     }
 
     async fn send_password_reset(
@@ -153,7 +168,8 @@ impl EmailService for ResendEmailService {
         to_name: String,
         reset_token: String,
     ) -> Result<(), ApiError> {
-        let (html_content, text_content) = self.template_service
+        let (html_content, text_content) = self
+            .template_service
             .generate_password_reset_template(&to_name, &reset_token);
 
         self.send_raw_email(
@@ -161,22 +177,20 @@ impl EmailService for ResendEmailService {
             "Restablecer Contraseña - Marketplace Local",
             &html_content,
             &text_content,
-        ).await
+        )
+        .await
     }
 
-    async fn send_welcome_email(
-        &self,
-        to_email: String,
-        to_name: String,
-    ) -> Result<(), ApiError> {
-        let (html_content, text_content) = self.template_service
-            .generate_welcome_template(&to_name);
+    async fn send_welcome_email(&self, to_email: String, to_name: String) -> Result<(), ApiError> {
+        let (html_content, text_content) =
+            self.template_service.generate_welcome_template(&to_name);
 
         self.send_raw_email(
             &to_email,
             "¡Bienvenido a Marketplace Local!",
             &html_content,
             &text_content,
-        ).await
+        )
+        .await
     }
 }

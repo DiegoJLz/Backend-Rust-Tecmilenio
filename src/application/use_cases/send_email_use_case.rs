@@ -59,7 +59,7 @@ impl SendEmailUseCase {
             to_email,
             to_name,
             "noreply@marketplace.com".to_string(), // This will be overridden by SMTP config
-            "Marketplace Local".to_string(), // This will be overridden by SMTP config
+            "Marketplace Local".to_string(),       // This will be overridden by SMTP config
             subject,
             html_content,
             text_content,

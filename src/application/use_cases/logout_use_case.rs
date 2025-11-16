@@ -1,4 +1,6 @@
-use crate::domain::repositories::{session_repository::SessionRepository, access_token_repository::AccessTokenRepository};
+use crate::domain::repositories::{
+    access_token_repository::AccessTokenRepository, session_repository::SessionRepository,
+};
 use crate::shared::error_types::{ApiError, ERROR_INVALID_TOKEN, ERROR_TOKEN_EXPIRED};
 use uuid::Uuid;
 
@@ -21,38 +23,43 @@ impl LogoutUseCase {
 
     pub async fn execute(&self, session_token: String) -> Result<(), ApiError> {
         // 1. Buscar la sesión por session_token
-        let session = self.session_repository
+        let session = self
+            .session_repository
             .find_by_session_token(&session_token)
             .await?
-            .ok_or_else(|| ApiError::with_details(
-                ERROR_INVALID_TOKEN,
-                "Invalid session",
-                "The provided session token is invalid"
-            ))?;
+            .ok_or_else(|| {
+                ApiError::with_details(
+                    ERROR_INVALID_TOKEN,
+                    "Invalid session",
+                    "The provided session token is invalid",
+                )
+            })?;
 
         // 2. Verificar que la sesión esté activa
         if !session.is_valid() {
             return Err(ApiError::with_details(
                 ERROR_TOKEN_EXPIRED,
                 "Session expired",
-                "The session has expired or is no longer active"
+                "The session has expired or is no longer active",
             ));
         }
 
         // 3. Revocar el access token asociado
-        if let Some(access_token) = self.access_token_repository
+        if let Some(access_token) = self
+            .access_token_repository
             .find_by_token(&session.access_token)
-            .await? {
-            self.access_token_repository
-                .revoke(access_token.id)
-                .await?;
+            .await?
+        {
+            self.access_token_repository.revoke(access_token.id).await?;
         }
 
         // 4. Revocar el refresh token si existe
         if let Some(refresh_token) = &session.refresh_token {
-            if let Some(refresh_token_entity) = self.access_token_repository
+            if let Some(refresh_token_entity) = self
+                .access_token_repository
                 .find_by_token(refresh_token)
-                .await? {
+                .await?
+            {
                 self.access_token_repository
                     .revoke(refresh_token_entity.id)
                     .await?;
@@ -60,9 +67,7 @@ impl LogoutUseCase {
         }
 
         // 5. Desactivar la sesión
-        self.session_repository
-            .deactivate(session.id)
-            .await?;
+        self.session_repository.deactivate(session.id).await?;
 
         Ok(())
     }

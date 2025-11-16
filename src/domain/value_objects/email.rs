@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::shared::{error_types::ApiError, validation_utils::ValidationUtils};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Email {

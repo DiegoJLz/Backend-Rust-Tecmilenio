@@ -1,27 +1,29 @@
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use dotenvy::dotenv;
 use log::info;
-use actix_web::{web, App, HttpServer, middleware::Logger};
 
-mod domain;
 mod application;
+mod domain;
 mod infrastructure;
 mod interfaces;
 mod shared;
 
+use application::handlers::{auth_handler::AuthHandler, landing_handler::LandingHandler};
+use domain::services::{
+    password_service::BcryptPasswordService, token_service::DefaultTokenService,
+};
 use infrastructure::database::{create_pool, run_migrations};
 use infrastructure::repositories::{
-    postgres_user_repository::PostgresUserRepository,
-    postgres_email_verification_repository::PostgresEmailVerificationRepository,
-    postgres_session_repository::PostgresSessionRepository,
     postgres_access_token_repository::PostgresAccessTokenRepository,
+    postgres_email_verification_repository::PostgresEmailVerificationRepository,
+    postgres_landing_repository::PostgresLandingRepository,
+    postgres_session_repository::PostgresSessionRepository,
+    postgres_user_repository::PostgresUserRepository,
 };
-use domain::services::{
-    password_service::BcryptPasswordService,
-    token_service::DefaultTokenService,
+use interfaces::controllers::{
+    auth_controller::AuthController, landing_controller::LandingController,
 };
-use application::handlers::auth_handler::AuthHandler;
-use interfaces::controllers::auth_controller::AuthController;
-use interfaces::rest::auth_routes::auth_routes;
+use interfaces::rest::{auth_routes::auth_routes, landing_routes::landing_routes};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -62,6 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let email_verification_repository = PostgresEmailVerificationRepository::new(pool.clone());
     let session_repository = PostgresSessionRepository::new(pool.clone());
     let access_token_repository = PostgresAccessTokenRepository::new(pool.clone());
+    let landing_repository = PostgresLandingRepository::new(pool.clone());
 
     // Initialize services
     let password_service = BcryptPasswordService;
@@ -76,9 +79,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         password_service,
         token_service,
     )?;
+    let landing_handler = LandingHandler::new(landing_repository, None);
 
     // Initialize controllers
     let auth_controller = AuthController::new(auth_handler);
+    let landing_controller = LandingController::new(landing_handler);
 
     // Start web server
     info!("🚀 Starting web server on http://127.0.0.1:8080");
@@ -87,9 +92,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         App::new()
             .wrap(Logger::default())
             .app_data(web::Data::new(auth_controller.clone()))
+            .app_data(web::Data::new(landing_controller.clone()))
             .service(
                 web::scope("/api/v1")
                     .service(auth_routes())
+                    .service(landing_routes()),
             )
             .route("/health", web::get().to(health_check))
     })

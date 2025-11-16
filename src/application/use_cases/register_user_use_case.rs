@@ -1,17 +1,19 @@
 use uuid::Uuid;
 
 use crate::application::dto::auth_dto::{RegisterUserRequest, RegisterUserResponse, UserDto};
-use crate::domain::entities::{user::User, email_verification_token::EmailVerificationToken};
-use crate::infrastructure::repositories::{
-    postgres_user_repository::PostgresUserRepository,
-    postgres_email_verification_repository::PostgresEmailVerificationRepository,
-};
+use crate::domain::entities::{email_verification_token::EmailVerificationToken, user::User};
 use crate::domain::{
-    repositories::{user_repository::UserRepository, email_verification_repository::EmailVerificationRepository},
-    services::{
-        password_service::{PasswordService, BcryptPasswordService},
-        token_service::{TokenService, DefaultTokenService},
+    repositories::{
+        email_verification_repository::EmailVerificationRepository, user_repository::UserRepository,
     },
+    services::{
+        password_service::{BcryptPasswordService, PasswordService},
+        token_service::{DefaultTokenService, TokenService},
+    },
+};
+use crate::infrastructure::repositories::{
+    postgres_email_verification_repository::PostgresEmailVerificationRepository,
+    postgres_user_repository::PostgresUserRepository,
 };
 use crate::shared::error_types::{ApiError, ERROR_USER_ALREADY_EXISTS, ERROR_VALIDATION_ERROR};
 use crate::shared::validation_utils::ValidationUtils;
@@ -42,13 +44,19 @@ impl RegisterUserUseCase {
         }
     }
 
-    pub async fn execute(&self, request: RegisterUserRequest) -> Result<RegisterUserResponse, ApiError> {
+    pub async fn execute(
+        &self,
+        request: RegisterUserRequest,
+    ) -> Result<RegisterUserResponse, ApiError> {
         // Validate input
         self.validate_request(&request)?;
 
         // Check if email already exists
         if self.user_repository.email_exists(&request.email).await? {
-            return Err(ApiError::new(ERROR_USER_ALREADY_EXISTS, "Email already exists"));
+            return Err(ApiError::new(
+                ERROR_USER_ALREADY_EXISTS,
+                "Email already exists",
+            ));
         }
 
         // Generate username from email (simple approach)
@@ -56,11 +64,17 @@ impl RegisterUserUseCase {
 
         // Check if username already exists
         if self.user_repository.username_exists(&username).await? {
-            return Err(ApiError::new(ERROR_USER_ALREADY_EXISTS, "Username already exists"));
+            return Err(ApiError::new(
+                ERROR_USER_ALREADY_EXISTS,
+                "Username already exists",
+            ));
         }
 
         // Hash password
-        let password_hash = self.password_service.hash_password(&request.password).await?;
+        let password_hash = self
+            .password_service
+            .hash_password(&request.password)
+            .await?;
 
         // Clone values before moving them
         let first_name = request.first_name.clone();
@@ -84,11 +98,10 @@ impl RegisterUserUseCase {
 
         // Generate email verification JWT token
         let full_name = format!("{} {}", first_name, last_name);
-        let verification_token = self.token_service.generate_email_verification_jwt(
-            user_id,
-            email.clone(),
-            full_name.clone(),
-        ).await?;
+        let verification_token = self
+            .token_service
+            .generate_email_verification_jwt(user_id, email.clone(), full_name.clone())
+            .await?;
 
         // Parse expiration from JWT (24 hours from now)
         let expires_at = chrono::Utc::now() + chrono::Duration::hours(24);
@@ -102,10 +115,13 @@ impl RegisterUserUseCase {
         };
 
         // Save verification token
-        self.email_verification_repository.create(&email_verification).await?;
+        self.email_verification_repository
+            .create(&email_verification)
+            .await?;
 
         // Send verification email
-        if let Err(email_error) = self.send_email_use_case
+        if let Err(email_error) = self
+            .send_email_use_case
             .send_email_verification(
                 email.clone(),
                 full_name.clone(),
@@ -114,7 +130,10 @@ impl RegisterUserUseCase {
             .await
         {
             // Log the error but don't fail the registration
-            println!("Failed to send verification email to {}: {}", email, email_error);
+            println!(
+                "Failed to send verification email to {}: {}",
+                email, email_error
+            );
         }
 
         // Convert to DTO
@@ -122,7 +141,8 @@ impl RegisterUserUseCase {
 
         Ok(RegisterUserResponse {
             user: user_dto,
-            message: "User registered successfully. Please check your email for verification.".to_string(),
+            message: "User registered successfully. Please check your email for verification."
+                .to_string(),
         })
     }
 
@@ -140,7 +160,10 @@ impl RegisterUserUseCase {
         ValidationUtils::validate_password(&request.password)?;
 
         // Validate password confirmation
-        ValidationUtils::validate_password_confirmation(&request.password, &request.confirm_password)?;
+        ValidationUtils::validate_password_confirmation(
+            &request.password,
+            &request.confirm_password,
+        )?;
 
         // Validate phone if provided
         if let Some(phone) = &request.phone {
@@ -154,17 +177,20 @@ impl RegisterUserUseCase {
         let local_part = email.split('@').next().unwrap_or("");
 
         if local_part.is_empty() {
-            return Err(ApiError::new(ERROR_VALIDATION_ERROR, "Invalid email format"));
+            return Err(ApiError::new(
+                ERROR_VALIDATION_ERROR,
+                "Invalid email format",
+            ));
         }
 
         // Clean the username (remove special characters, keep only alphanumeric)
-        let clean_username: String = local_part
-            .chars()
-            .filter(|c| c.is_alphanumeric())
-            .collect();
+        let clean_username: String = local_part.chars().filter(|c| c.is_alphanumeric()).collect();
 
         if clean_username.len() < 3 {
-            return Err(ApiError::new(ERROR_VALIDATION_ERROR, "Email local part too short for username"));
+            return Err(ApiError::new(
+                ERROR_VALIDATION_ERROR,
+                "Email local part too short for username",
+            ));
         }
 
         // Add random suffix to make it unique
