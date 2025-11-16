@@ -1,8 +1,8 @@
+use crate::infrastructure::database::schema::sessions;
 use chrono::{DateTime, Utc};
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use diesel::{Queryable, Insertable, Selectable, Identifiable};
-use crate::infrastructure::database::schema::sessions;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = sessions)]

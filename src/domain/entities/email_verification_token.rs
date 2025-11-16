@@ -1,8 +1,8 @@
+use crate::infrastructure::database::schema::email_verification_tokens;
 use chrono::{DateTime, Utc};
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use diesel::{Queryable, Insertable, Selectable, Identifiable};
-use crate::infrastructure::database::schema::email_verification_tokens;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Selectable, Identifiable)]
 #[diesel(table_name = email_verification_tokens)]
