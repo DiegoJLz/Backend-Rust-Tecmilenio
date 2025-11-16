@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use uuid::Uuid;
 use crate::domain::entities::user::User;
 use crate::shared::error_types::ApiError;
+use async_trait::async_trait;
+use uuid::Uuid;
 
 #[async_trait]
 pub trait UserRepository: Send + Sync {
