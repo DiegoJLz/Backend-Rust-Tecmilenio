@@ -26,7 +26,10 @@ diesel::table! {
         name -> Varchar,
         description -> Nullable<Text>,
         icon_url -> Nullable<Text>,
+        background_image_url -> Nullable<Text>,
         is_active -> Nullable<Bool>,
+        show_on_home -> Nullable<Bool>,
+        home_order -> Nullable<Int4>,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
     }
@@ -114,7 +117,12 @@ diesel::table! {
         id -> Uuid,
         #[max_length = 200]
         title -> Varchar,
+        #[max_length = 200]
+        slug -> Varchar,
+        summary -> Nullable<Text>,
         description -> Text,
+        hero_image_url -> Nullable<Text>,
+        thumbnail_url -> Nullable<Text>,
         host_id -> Uuid,
         category_id -> Uuid,
         location_id -> Uuid,
@@ -123,6 +131,122 @@ diesel::table! {
         min_participants -> Int4,
         duration_hours -> Numeric,
         difficulty_level -> Nullable<Int4>,
+        average_rating -> Nullable<Numeric>,
+        review_count -> Nullable<Int4>,
+        #[max_length = 50]
+        language -> Nullable<Varchar>,
+        #[max_length = 3]
+        currency -> Nullable<Varchar>,
+        featured_rank -> Nullable<Int4>,
+        is_featured -> Nullable<Bool>,
+        is_active -> Nullable<Bool>,
+        created_at -> Nullable<Timestamptz>,
+        updated_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    landing_highlights (id) {
+        id -> Uuid,
+        #[max_length = 150]
+        title -> Varchar,
+        #[max_length = 255]
+        subtitle -> Nullable<Varchar>,
+        description -> Nullable<Text>,
+        image_url -> Text,
+        mobile_image_url -> Nullable<Text>,
+        #[max_length = 100]
+        cta_label -> Nullable<Varchar>,
+        cta_url -> Nullable<Text>,
+        #[max_length = 50]
+        badge_label -> Nullable<Varchar>,
+        display_order -> Nullable<Int4>,
+        is_active -> Nullable<Bool>,
+        created_at -> Nullable<Timestamptz>,
+        updated_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    promotions (id) {
+        id -> Uuid,
+        #[max_length = 150]
+        name -> Varchar,
+        #[max_length = 255]
+        headline -> Nullable<Varchar>,
+        description -> Nullable<Text>,
+        #[max_length = 20]
+        discount_type -> Varchar,
+        discount_value -> Numeric,
+        start_date -> Nullable<Timestamptz>,
+        end_date -> Nullable<Timestamptz>,
+        terms -> Nullable<Text>,
+        image_url -> Nullable<Text>,
+        #[max_length = 100]
+        badge_label -> Nullable<Varchar>,
+        #[max_length = 100]
+        cta_label -> Nullable<Varchar>,
+        cta_url -> Nullable<Text>,
+        is_stackable -> Nullable<Bool>,
+        is_active -> Nullable<Bool>,
+        created_at -> Nullable<Timestamptz>,
+        updated_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    promotion_experiences (id) {
+        id -> Uuid,
+        promotion_id -> Uuid,
+        experience_id -> Uuid,
+        created_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    experience_collections (id) {
+        id -> Uuid,
+        #[max_length = 100]
+        slug -> Varchar,
+        #[max_length = 150]
+        title -> Varchar,
+        #[max_length = 255]
+        subtitle -> Nullable<Varchar>,
+        description -> Nullable<Text>,
+        cover_image_url -> Nullable<Text>,
+        filter_criteria -> Nullable<Jsonb>,
+        display_order -> Nullable<Int4>,
+        is_active -> Nullable<Bool>,
+        created_at -> Nullable<Timestamptz>,
+        updated_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    experience_collection_items (id) {
+        id -> Uuid,
+        collection_id -> Uuid,
+        experience_id -> Uuid,
+        display_order -> Nullable<Int4>,
+        created_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
+    landing_testimonials (id) {
+        id -> Uuid,
+        review_id -> Nullable<Uuid>,
+        #[max_length = 150]
+        author_name -> Varchar,
+        #[max_length = 150]
+        author_city -> Nullable<Varchar>,
+        #[max_length = 150]
+        author_country -> Nullable<Varchar>,
+        avatar_url -> Nullable<Text>,
+        quote -> Text,
+        rating -> Nullable<Int4>,
+        featured_experience_id -> Nullable<Uuid>,
+        display_order -> Nullable<Int4>,
         is_active -> Nullable<Bool>,
         created_at -> Nullable<Timestamptz>,
         updated_at -> Nullable<Timestamptz>,
@@ -226,17 +350,29 @@ diesel::joinable!(experience_tags -> experiences (experience_id));
 diesel::joinable!(experiences -> categories (category_id));
 diesel::joinable!(experiences -> locations (location_id));
 diesel::joinable!(experiences -> users (host_id));
+diesel::joinable!(promotion_experiences -> promotions (promotion_id));
+diesel::joinable!(promotion_experiences -> experiences (experience_id));
+diesel::joinable!(experience_collection_items -> experience_collections (collection_id));
+diesel::joinable!(experience_collection_items -> experiences (experience_id));
 diesel::joinable!(payments -> bookings (booking_id));
 diesel::joinable!(reviews -> bookings (booking_id));
 diesel::joinable!(reviews -> experiences (experience_id));
 diesel::joinable!(reviews -> users (user_id));
+diesel::joinable!(landing_testimonials -> experiences (featured_experience_id));
+diesel::joinable!(landing_testimonials -> reviews (review_id));
 diesel::joinable!(user_favorites -> experiences (experience_id));
 diesel::joinable!(user_favorites -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     bookings,
     categories,
+    experience_collection_items,
+    experience_collections,
     email_verification_tokens,
+    landing_highlights,
+    landing_testimonials,
+    promotion_experiences,
+    promotions,
     experience_images,
     experience_schedules,
     experience_tags,

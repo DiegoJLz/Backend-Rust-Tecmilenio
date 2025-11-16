@@ -11,8 +11,7 @@ pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 pub fn create_pool() -> Result<DbPool, Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let manager = ConnectionManager::<PgConnection>::new(database_url);
     let pool = Pool::builder()
@@ -25,8 +24,7 @@ pub fn create_pool() -> Result<DbPool, Box<dyn std::error::Error>> {
 pub fn run_migrations() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let mut conn = PgConnection::establish(&database_url)?;
 
