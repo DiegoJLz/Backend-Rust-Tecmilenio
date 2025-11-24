@@ -1,7 +1,13 @@
+pub mod create_booking_use_case;
 pub mod forgot_password_use_case;
+pub mod get_booking_use_case;
 pub mod get_landing_page_use_case;
+pub mod get_promotion_use_case;
+pub mod list_promotions_use_case;
+pub mod list_user_bookings_use_case;
 pub mod login_user_use_case;
 pub mod logout_use_case;
+pub mod quote_booking_use_case;
 pub mod register_user_use_case;
 pub mod resend_email_verification_use_case;
 pub mod reset_password_use_case;
