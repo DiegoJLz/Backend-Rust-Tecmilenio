@@ -8,22 +8,31 @@ mod infrastructure;
 mod interfaces;
 mod shared;
 
-use application::handlers::{auth_handler::AuthHandler, landing_handler::LandingHandler};
+use application::handlers::{
+    auth_handler::AuthHandler, booking_handler::BookingHandler, landing_handler::LandingHandler,
+    promotion_handler::PromotionHandler,
+};
 use domain::services::{
     password_service::BcryptPasswordService, token_service::DefaultTokenService,
 };
 use infrastructure::database::{create_pool, run_migrations};
 use infrastructure::repositories::{
     postgres_access_token_repository::PostgresAccessTokenRepository,
+    postgres_booking_repository::PostgresBookingRepository,
     postgres_email_verification_repository::PostgresEmailVerificationRepository,
     postgres_landing_repository::PostgresLandingRepository,
+    postgres_promotion_repository::PostgresPromotionRepository,
     postgres_session_repository::PostgresSessionRepository,
     postgres_user_repository::PostgresUserRepository,
 };
 use interfaces::controllers::{
-    auth_controller::AuthController, landing_controller::LandingController,
+    auth_controller::AuthController, booking_controller::BookingController,
+    landing_controller::LandingController, promotion_controller::PromotionController,
 };
-use interfaces::rest::{auth_routes::auth_routes, landing_routes::landing_routes};
+use interfaces::rest::{
+    auth_routes::auth_routes, booking_routes::{booking_routes, user_bookings_routes},
+    landing_routes::landing_routes, promotion_routes::promotion_routes,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -65,6 +74,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let session_repository = PostgresSessionRepository::new(pool.clone());
     let access_token_repository = PostgresAccessTokenRepository::new(pool.clone());
     let landing_repository = PostgresLandingRepository::new(pool.clone());
+    let booking_repository = PostgresBookingRepository::new(pool.clone());
+    let promotion_repository = PostgresPromotionRepository::new(pool.clone());
 
     // Initialize services
     let password_service = BcryptPasswordService;
@@ -80,10 +91,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         token_service,
     )?;
     let landing_handler = LandingHandler::new(landing_repository, None);
+    let booking_handler = BookingHandler::new(booking_repository);
+    let promotion_handler = PromotionHandler::new(promotion_repository);
 
     // Initialize controllers
     let auth_controller = AuthController::new(auth_handler);
     let landing_controller = LandingController::new(landing_handler);
+    let booking_controller = BookingController::new(booking_handler);
+    let promotion_controller = PromotionController::new(promotion_handler);
 
     // Start web server
     info!("🚀 Starting web server on http://127.0.0.1:8080");
@@ -93,10 +108,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .wrap(Logger::default())
             .app_data(web::Data::new(auth_controller.clone()))
             .app_data(web::Data::new(landing_controller.clone()))
+            .app_data(web::Data::new(booking_controller.clone()))
+            .app_data(web::Data::new(promotion_controller.clone()))
             .service(
                 web::scope("/api/v1")
                     .service(auth_routes())
-                    .service(landing_routes()),
+                    .service(landing_routes())
+                    .service(booking_routes())
+                    .service(user_bookings_routes())
+                    .service(promotion_routes()),
             )
             .route("/health", web::get().to(health_check))
     })
