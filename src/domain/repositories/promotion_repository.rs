@@ -13,3 +13,4 @@ pub trait PromotionRepository: Send + Sync {
         id: Uuid,
     ) -> Result<Option<LandingPromotion>, ApiError>;
 }
+

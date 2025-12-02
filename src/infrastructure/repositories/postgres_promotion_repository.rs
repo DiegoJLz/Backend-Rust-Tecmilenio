@@ -35,11 +35,33 @@ impl PromotionRepository for PostgresPromotionRepository {
         let mut conn = self
             .pool
             .get()
-            .map_err(|e| map_db_error("Failed to get database connection", e.into()))?;
+            .map_err(|e| map_db_error("Failed to get database connection", diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UnableToSendCommand,
+                Box::new(e.to_string()),
+            )))?;
 
         let rows = promotions_dsl::promotions
             .filter(promotions_dsl::is_active.eq(true))
             .order(promotions_dsl::created_at.desc().nulls_last())
+            .select((
+                promotions_dsl::id,
+                promotions_dsl::name,
+                promotions_dsl::headline,
+                promotions_dsl::description,
+                promotions_dsl::discount_type,
+                promotions_dsl::discount_value,
+                promotions_dsl::start_date,
+                promotions_dsl::end_date,
+                promotions_dsl::terms,
+                promotions_dsl::image_url,
+                promotions_dsl::badge_label,
+                promotions_dsl::cta_label,
+                promotions_dsl::cta_url,
+                promotions_dsl::is_stackable,
+                promotions_dsl::is_active,
+                promotions_dsl::created_at,
+                promotions_dsl::updated_at,
+            ))
             .load::<(
                 Uuid,
                 String,
@@ -49,6 +71,7 @@ impl PromotionRepository for PostgresPromotionRepository {
                 bigdecimal::BigDecimal,
                 Option<chrono::DateTime<chrono::Utc>>,
                 Option<chrono::DateTime<chrono::Utc>>,
+                Option<String>,
                 Option<String>,
                 Option<String>,
                 Option<String>,
@@ -76,6 +99,7 @@ impl PromotionRepository for PostgresPromotionRepository {
                     image_url,
                     badge_label,
                     cta_label,
+                    cta_url,
                     _is_stackable,
                     _is_active,
                     _created_at,
@@ -89,7 +113,7 @@ impl PromotionRepository for PostgresPromotionRepository {
                     discount_value: discount_value.to_f64().unwrap_or(0.0),
                     badge_label,
                     cta_label,
-                    cta_url: None,
+                    cta_url,
                     image_url,
                     terms,
                 },
@@ -106,10 +130,32 @@ impl PromotionRepository for PostgresPromotionRepository {
         let mut conn = self
             .pool
             .get()
-            .map_err(|e| map_db_error("Failed to get database connection", e.into()))?;
+            .map_err(|e| map_db_error("Failed to get database connection", diesel::result::Error::DatabaseError(
+                diesel::result::DatabaseErrorKind::UnableToSendCommand,
+                Box::new(e.to_string()),
+            )))?;
 
         let row = promotions_dsl::promotions
             .filter(promotions_dsl::id.eq(id))
+            .select((
+                promotions_dsl::id,
+                promotions_dsl::name,
+                promotions_dsl::headline,
+                promotions_dsl::description,
+                promotions_dsl::discount_type,
+                promotions_dsl::discount_value,
+                promotions_dsl::start_date,
+                promotions_dsl::end_date,
+                promotions_dsl::terms,
+                promotions_dsl::image_url,
+                promotions_dsl::badge_label,
+                promotions_dsl::cta_label,
+                promotions_dsl::cta_url,
+                promotions_dsl::is_stackable,
+                promotions_dsl::is_active,
+                promotions_dsl::created_at,
+                promotions_dsl::updated_at,
+            ))
             .first::<(
                 Uuid,
                 String,
@@ -119,6 +165,7 @@ impl PromotionRepository for PostgresPromotionRepository {
                 bigdecimal::BigDecimal,
                 Option<chrono::DateTime<chrono::Utc>>,
                 Option<chrono::DateTime<chrono::Utc>>,
+                Option<String>,
                 Option<String>,
                 Option<String>,
                 Option<String>,
@@ -145,6 +192,7 @@ impl PromotionRepository for PostgresPromotionRepository {
                 image_url,
                 badge_label,
                 cta_label,
+                cta_url,
                 _is_stackable,
                 _is_active,
                 _created_at,
@@ -158,7 +206,7 @@ impl PromotionRepository for PostgresPromotionRepository {
                 discount_value: discount_value.to_f64().unwrap_or(0.0),
                 badge_label,
                 cta_label,
-                cta_url: None,
+                cta_url,
                 image_url,
                 terms,
             },

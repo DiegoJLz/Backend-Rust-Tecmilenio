@@ -48,3 +48,4 @@ pub struct CreateBookingRequest {
     pub special_requests: Option<String>,
     pub promotion_id: Option<Uuid>,
 }
+
