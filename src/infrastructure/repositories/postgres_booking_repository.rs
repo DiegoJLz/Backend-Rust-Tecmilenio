@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use bigdecimal::ToPrimitive;
+use bigdecimal::{FromPrimitive, ToPrimitive};
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use uuid::Uuid;
@@ -96,6 +96,25 @@ impl BookingRepository for PostgresBookingRepository {
             if let Some(promo) = promotions_dsl::promotions
                 .filter(promotions_dsl::id.eq(promotion_id))
                 .filter(promotions_dsl::is_active.eq(true))
+                .select((
+                    promotions_dsl::id,
+                    promotions_dsl::name,
+                    promotions_dsl::headline,
+                    promotions_dsl::description,
+                    promotions_dsl::discount_type,
+                    promotions_dsl::discount_value,
+                    promotions_dsl::start_date,
+                    promotions_dsl::end_date,
+                    promotions_dsl::terms,
+                    promotions_dsl::image_url,
+                    promotions_dsl::badge_label,
+                    promotions_dsl::cta_label,
+                    promotions_dsl::cta_url,
+                    promotions_dsl::is_stackable,
+                    promotions_dsl::is_active,
+                    promotions_dsl::created_at,
+                    promotions_dsl::updated_at,
+                ))
                 .first::<(
                     Uuid,
                     String,
@@ -105,6 +124,7 @@ impl BookingRepository for PostgresBookingRepository {
                     bigdecimal::BigDecimal,
                     Option<DateTime<Utc>>,
                     Option<DateTime<Utc>>,
+                    Option<String>,
                     Option<String>,
                     Option<String>,
                     Option<String>,
